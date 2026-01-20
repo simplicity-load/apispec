@@ -137,7 +137,8 @@ func (r recieverSet) all() iter.Seq[reciever] {
 
 func generate(
 	representation repr.Representation,
-	file io.Writer,
+	output io.Writer,
+	validateUrl string,
 ) error {
 	imports := newImportSet()
 	recievers := newRecieverSet()
@@ -156,6 +157,7 @@ func generate(
 			}
 			return ""
 		},
+		"ValidateImport": func() string { return validateUrl },
 	}).Parse(registerTemplate)
 	if err != nil {
 		panic(fmt.Sprintf("template parsing failed, err: %s", err))
@@ -173,7 +175,7 @@ func generate(
 	if err != nil {
 		panic(err)
 	}
-	_, err = fmt.Fprintln(file, gen)
+	_, err = fmt.Fprintln(output, gen)
 	if err != nil {
 		panic(err)
 	}
@@ -351,7 +353,7 @@ package apispec
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/simplicity-load/validate"
+	"{{.ValidateImport}}"
 
 	{{ range .Imports}}
 	{{.Ident}} "{{.Import}}"{{end}}
