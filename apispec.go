@@ -24,7 +24,7 @@ func Generate(config http.HttpServer) error {
 	}
 	err = generate(repr.Representation{
 		Routes: paths,
-	}, config.OutputFile)
+	}, config.OutputFile, config.ValidateUrl)
 	if err != nil {
 		return fmt.Errorf("failed generating: %w", err)
 	}
