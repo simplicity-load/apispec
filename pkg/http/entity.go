@@ -69,3 +69,11 @@ type HttpServer struct {
 	OutputFile     io.Writer
 	ValidateUrl    string
 }
+
+type OpenAPIConfig struct {
+	Routes     RootPath
+	OutputFile io.Writer
+	Title      string
+	Version    string
+	ServerURL  string
+}
