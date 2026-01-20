@@ -67,4 +67,5 @@ type HttpServer struct {
 	ClientTemplate string
 	Routes         RootPath
 	OutputFile     io.Writer
+	ValidateUrl    string
 }
