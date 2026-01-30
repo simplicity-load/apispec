@@ -247,7 +247,7 @@ func templatedEndpoints(endpoints []*repr.Endpoint, middleware repr.Middlewares,
 			if err != nil {
 				panic(err)
 			}
-			fmt.Printf("[✔] Endpoint {%s}\tgenerated\n", endpoint.Handler.Name)
+			fmt.Printf("[✔] Endpoint {%-20s}\tgenerated\n", endpoint.Handler.Name)
 			if !yield(s) {
 				return
 			}
@@ -346,7 +346,7 @@ func generateParams(body *repr.Data) iter.Seq[string] {
 
 const endpointTemplate = `app.{{ .Method | httpMethodToFiber }}(
 		"{{ .Path | pathToString }}",
-		{{ range .Middleware | formatMiddleware .Imports }}{{.}},
+		{{ range formatMiddleware .Middleware .Imports }}{{.}},
 		{{ end }}func(c *fiber.Ctx) error {
 			body := &{{ .ImportIdent }}.{{ .Body.Name }}{}
 
