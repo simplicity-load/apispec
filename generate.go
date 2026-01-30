@@ -218,10 +218,10 @@ func generateEndpointsIter(path *repr.Path, imports importSet, recievers recieve
 
 func templatedEndpoints(endpoints []*repr.Endpoint, middleware repr.Middlewares, imports importSet, recievers recieverSet) iter.Seq[string] {
 	t, err := template.New("").Funcs(template.FuncMap{
-		"pathToString":         repr.PathToURL,
-		"httpMethodToFiber":    httpMethodToFiber,
-		"generateParams":       generateParams,
-		"formatMiddleware":     formatMiddleware,
+		"pathToString":      repr.PathToURL,
+		"httpMethodToFiber": httpMethodToFiber,
+		"generateParams":    generateParams,
+		"formatMiddleware":  formatMiddleware,
 	}).Parse(endpointTemplate)
 	if err != nil {
 		panic(fmt.Sprintf("template parsing failed, template: %s, err: %s", t.DefinedTemplates(), err))
@@ -247,7 +247,8 @@ func templatedEndpoints(endpoints []*repr.Endpoint, middleware repr.Middlewares,
 			if err != nil {
 				panic(err)
 			}
-			fmt.Printf("[✔] Endpoint {%s}\tgenerated\n", endpoint.Handler.Name)
+			braced := "{" + endpoint.Handler.Name + "}"
+			fmt.Printf("[✔] Endpoint generated {%s}\t\n", braced)
 			if !yield(s) {
 				return
 			}
@@ -266,12 +267,12 @@ func formatMiddleware(middleware repr.Middlewares, imports importSet) iter.Seq[s
 		for _, m := range middleware {
 			var formatted string
 			if m.Reciever != nil {
-				formatted = fmt.Sprintf("%s.%s", 
-					imports.get(m.Import), 
+				formatted = fmt.Sprintf("%s.%s",
+					imports.get(m.Import),
 					m.Name)
 			} else {
-				formatted = fmt.Sprintf("%s.%s", 
-					imports.get(m.Import), 
+				formatted = fmt.Sprintf("%s.%s",
+					imports.get(m.Import),
 					m.Name)
 			}
 			if !yield(formatted) {
@@ -346,7 +347,7 @@ func generateParams(body *repr.Data) iter.Seq[string] {
 
 const endpointTemplate = `app.{{ .Method | httpMethodToFiber }}(
 		"{{ .Path | pathToString }}",
-		{{ range .Middleware | formatMiddleware .Imports }}{{.}},
+		{{ range formatMiddleware .Middleware .Imports }}{{.}},
 		{{ end }}func(c *fiber.Ctx) error {
 			body := &{{ .ImportIdent }}.{{ .Body.Name }}{}
 
