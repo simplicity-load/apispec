@@ -83,13 +83,15 @@ type Data struct {
 	Fields []*StructField
 }
 
-type Middleware string
+type Middleware = Handler
+
+type Middlewares []*Middleware
 
 type Path struct {
 	PathString
-	Endpoints  Endpoints    `json:",omitempty"`
-	Middleware []Middleware `json:",omitempty"`
-	SubPath    []*Path      `json:",omitempty"`
+	Endpoints  Endpoints   `json:",omitempty"`
+	Middleware Middlewares `json:",omitempty"`
+	SubPath    []*Path     `json:",omitempty"`
 }
 
 type Endpoints []*Endpoint

@@ -47,3 +47,16 @@ func (endpoints Endpoints) Recievers() iter.Seq2[Reciever, string] {
 		}
 	}
 }
+
+func (middleware Middlewares) Imports() iter.Seq[string] {
+	return func(yield func(x string) bool) {
+		for _, m := range middleware {
+			if m.Import == "" {
+				continue
+			}
+			if !yield(m.Import) {
+				return
+			}
+		}
+	}
+}
