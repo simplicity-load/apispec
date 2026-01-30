@@ -33,9 +33,11 @@ type Endpoint struct {
 	QueryParams   []string      `json:",omitempty"`
 	UrlParams     []string      `json:",omitempty"`
 	Authorization []string      `json:",omitempty"`
+	Description   string        `json:",omitempty"`
 	Body          *Data         `json:",omitempty"`
 	Response      *Data         `json:",omitempty"`
 	Handler       *Handler      `json:",omitempty"`
+	Middleware    Middlewares   `json:",omitempty"`
 }
 
 type Handler struct {

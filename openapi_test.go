@@ -60,41 +60,29 @@ func TestGenerateOpenAPI_Comprehensive(t *testing.T) {
 	listUsersHandler := func(ctx context.Context, req *ListUsersRequest) (*ListUsersResponse, error) { return nil, nil }
 	deleteUserHandler := func(ctx context.Context, req *GetUserRequest) (*EmptyResponse, error) { return nil, nil }
 
-	// Create route configuration
+	// Create route configuration using new imperative API
 	// Expected paths:
 	// POST /              (Create User - though usually /users, testing root path here)
 	// GET /               (List Users)
 	// GET /users/{id}     (Get User)
 	// PUT /users/{id}     (Update User)
 	// DELETE /users/{id}  (Delete User)
-	routes := http.RootPath{
-		Endpoints: http.Endpoints{
-			http.POST: http.Endpoint{Handler: createUserHandler},
-			http.GET:  http.Endpoint{Handler: listUsersHandler},
-		},
-		SubPaths: []http.Path{
-			http.StaticPath{
-				Path: "users",
-				SubPaths: []http.Path{
-					http.ParamPath{
-						Path: "id",
-						Endpoints: http.Endpoints{
-							http.GET:    http.Endpoint{Handler: getUserHandler},
-							http.PUT:    http.Endpoint{Handler: updateUserHandler},
-							http.DELETE: http.Endpoint{Handler: deleteUserHandler},
-						},
-					},
-				},
-			},
-		},
-	}
+	api := http.NewAPI()
+	api.Post(createUserHandler, "Create a new user")
+	api.Get(listUsersHandler, "List all users")
+
+	users := api.Static("users")
+	userId := users.Param("id")
+	userId.Get(getUserHandler, "Get user by ID")
+	userId.Put(updateUserHandler, "Update user by ID")
+	userId.Delete(deleteUserHandler, "Delete user by ID")
 
 	// Create output buffer
 	var output bytes.Buffer
 
 	// Create config
 	config := http.OpenAPIConfig{
-		Routes:     routes,
+		Routes:     api,
 		OutputFile: &output,
 		Title:      "Complex User API",
 		Version:    "2.0.0",

@@ -13,24 +13,22 @@ import (
 	repr "github.com/simplicity-load/apispec/pkg/repr/http"
 )
 
-func ParsePaths(config http.RootPath) (*repr.Path, error) {
+func ParsePaths(config *http.Path) (*repr.Path, error) {
 	return traversePathsIter(config, repr.PathStrings{}, repr.Middlewares{})
 }
-func traversePathsIter(route http.Path, paths []*repr.PathString, parentMiddleware repr.Middlewares) (*repr.Path, error) {
-	ps, err := ParsePathString(route)
-	if err != nil {
-		return nil, e.ErrFailedAction("parse path string", err)
-	}
+
+func traversePathsIter(route *http.Path, paths []*repr.PathString, parentMiddleware repr.Middlewares) (*repr.Path, error) {
+	ps := parsePathString(route)
 	pathStrings := make([]*repr.PathString, 0, len(paths)+1)
 	pathStrings = append(pathStrings, paths...)
 	pathStrings = append(pathStrings, ps)
 
-	endpoints, err := parseEndpoints(route.Endpoint(), pathStrings)
+	endpoints, err := parseEndpoints(route.Endpoints, pathStrings)
 	if err != nil {
 		return nil, e.ErrFailedAction("parse endpoint", err)
 	}
 
-	middleware, err := parseMiddleware(route.Middlewares())
+	middleware, err := parseMiddleware(route.Middleware)
 	if err != nil {
 		return nil, e.ErrFailedAction("parse middleware", err)
 	}
@@ -40,7 +38,7 @@ func traversePathsIter(route http.Path, paths []*repr.PathString, parentMiddlewa
 	accumulatedMiddleware = append(accumulatedMiddleware, middleware...)
 
 	subPaths := make([]*repr.Path, 0)
-	for _, p := range route.SubPath() {
+	for _, p := range route.SubPaths {
 		path, err := traversePathsIter(p, pathStrings, accumulatedMiddleware)
 		if err != nil {
 			return nil, err
@@ -59,10 +57,10 @@ func traversePathsIter(route http.Path, paths []*repr.PathString, parentMiddlewa
 func parseEndpoints(httpEndpoints http.Endpoints, paths []*repr.PathString) ([]*repr.Endpoint, error) {
 	endpoints := make([]*repr.Endpoint, 0, len(httpEndpoints))
 
-	for method, handler := range httpEndpoints {
-		endpoint, err := parseHandler(handler.Handler, method, paths)
+	for method, ep := range httpEndpoints {
+		endpoint, err := parseHandler(ep, method, paths)
 		if err != nil {
-			return nil, ErrFnSignature(handler.Handler, err)
+			return nil, ErrFnSignature(ep.Handler, err)
 		}
 		endpoints = append(endpoints, endpoint)
 	}
@@ -102,13 +100,13 @@ func parseFnIdents(fn any) (*repr.Handler, error) {
 var ctxInterface = reflect.TypeOf((*context.Context)(nil)).Elem()
 var errInterface = reflect.TypeOf((*error)(nil)).Elem()
 
-func parseHandler(handlerFn any, method http.Method, paths []*repr.PathString) (*repr.Endpoint, error) {
-	fn := reflect.TypeOf(handlerFn)
+func parseHandler(ep http.Endpoint, method http.Method, paths []*repr.PathString) (*repr.Endpoint, error) {
+	fn := reflect.TypeOf(ep.Handler)
 	if fn.Kind() != reflect.Func {
 		return nil, e.ErrBadType(fn, "function")
 	}
 
-	handler, err := parseFnIdents(handlerFn)
+	handler, err := parseFnIdents(ep.Handler)
 	if err != nil {
 		return nil, e.ErrFailedAction("parse function identifiers", err)
 	}
@@ -128,14 +126,22 @@ func parseHandler(handlerFn any, method http.Method, paths []*repr.PathString) (
 		return nil, e.ErrFailedActionWithItem("parse response", reqType.Name(), err)
 	}
 
+	// Parse endpoint-level middleware
+	epMiddleware, err := parseMiddleware(ep.Middleware)
+	if err != nil {
+		return nil, e.ErrFailedAction("parse endpoint middleware", err)
+	}
+
 	return &repr.Endpoint{
 		Method: method,
 		Path:   paths,
 		// QueryParams:   queryparams,
-		Authorization: []string{},
+		Authorization: ep.Authz,
+		Description:   ep.Description,
 		Body:          body,
 		Response:      response,
 		Handler:       handler,
+		Middleware:    epMiddleware,
 	}, nil
 }
 
@@ -423,23 +429,19 @@ func parseValidation(s reflect.StructField) (
 	return strings.Split(val, ","), nil
 }
 
-func ParsePathString(path http.Path) (*repr.PathString, error) {
-	switch p := path.(type) {
-	case http.RootPath:
-		return &repr.PathString{
-			Type: repr.PathROOT,
-		}, nil
-	case http.StaticPath:
-		return &repr.PathString{
-			Name: p.Path,
-			Type: repr.PathSTATIC,
-		}, nil
-	case http.ParamPath:
-		return &repr.PathString{
-			Name: p.Path,
-			Type: repr.PathPARAM,
-		}, nil
-	default:
-		return nil, e.ErrBadValueFromList("path type", typeName(path), typeNameFromList(http.ValidPaths))
+func ParsePathString(path *http.Path) *repr.PathString {
+	var t repr.PathType
+	switch path.Type {
+	case http.PathRoot:
+		t = repr.PathROOT
+	case http.PathStatic:
+		t = repr.PathSTATIC
+	case http.PathParam:
+		t = repr.PathPARAM
 	}
+	return &repr.PathString{Name: path.Name, Type: t}
+}
+
+func parsePathString(path *http.Path) *repr.PathString {
+	return ParsePathString(path)
 }

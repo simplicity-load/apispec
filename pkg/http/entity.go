@@ -13,69 +13,116 @@ const (
 )
 
 type Endpoint struct {
-	Handler any
-	Authn   []string
+	Handler     any
+	Description string
+	Authz       []string
+	Middleware  []any
 }
 
 type Endpoints map[Method]Endpoint
 
-var ValidPaths = []Path{
-	RootPath{},
-	StaticPath{},
-	ParamPath{},
+type optionType int
+
+const (
+	optAuthz optionType = iota
+	optMiddleware
+)
+
+type EndpointOpt struct {
+	typ    optionType
+	authz  []string
+	middle []any
 }
 
-type RootPath struct {
-	Endpoints  Endpoints
+func (o EndpointOpt) getOptionType() optionType { return o.typ }
+
+func Authz(values ...string) EndpointOpt {
+	return EndpointOpt{typ: optAuthz, authz: values}
+}
+
+func Middleware(values ...any) EndpointOpt {
+	return EndpointOpt{typ: optMiddleware, middle: values}
+}
+
+type PathType int
+
+const (
+	PathRoot PathType = iota
+	PathStatic
+	PathParam
+)
+
+type Path struct {
+	Name       string
+	Type       PathType
+	Endpoints  map[Method]Endpoint
 	Middleware []any
-	SubPaths   []Path
+	SubPaths   []*Path
 }
 
-func (p RootPath) isPath()             {}
-func (p RootPath) SubPath() []Path     { return p.SubPaths }
-func (p RootPath) Endpoint() Endpoints { return p.Endpoints }
-func (p RootPath) Middlewares() []any  { return p.Middleware }
-
-type StaticPath struct {
-	Path       string
-	Endpoints  Endpoints
-	Middleware []any
-	SubPaths   []Path
+func NewAPI() *Path {
+	return &Path{Type: PathRoot, Endpoints: make(map[Method]Endpoint)}
 }
 
-func (p StaticPath) isPath()             {}
-func (p StaticPath) SubPath() []Path     { return p.SubPaths }
-func (p StaticPath) Endpoint() Endpoints { return p.Endpoints }
-func (p StaticPath) Middlewares() []any  { return p.Middleware }
-
-type ParamPath struct {
-	Path      string
-	Endpoints Endpoints
-	SubPaths  []Path
+func (p *Path) Static(name string) *Path {
+	child := &Path{Name: name, Type: PathStatic, Endpoints: make(map[Method]Endpoint)}
+	p.SubPaths = append(p.SubPaths, child)
+	return child
 }
 
-func (p ParamPath) isPath()             {}
-func (p ParamPath) SubPath() []Path     { return p.SubPaths }
-func (p ParamPath) Endpoint() Endpoints { return p.Endpoints }
-func (p ParamPath) Middlewares() []any  { return nil }
+func (p *Path) Param(name string) *Path {
+	child := &Path{Name: name, Type: PathParam, Endpoints: make(map[Method]Endpoint)}
+	p.SubPaths = append(p.SubPaths, child)
+	return child
+}
 
-type Path interface {
-	isPath()
-	SubPath() []Path
-	Endpoint() Endpoints
-	Middlewares() []any
+func (p *Path) Use(middleware ...any) {
+	p.Middleware = append(p.Middleware, middleware...)
+}
+
+func (p *Path) addEndpoint(method Method, handler any, desc string, opts []EndpointOpt) {
+	ep := Endpoint{Handler: handler, Description: desc}
+	for _, opt := range opts {
+		switch opt.getOptionType() {
+		case optAuthz:
+			ep.Authz = opt.authz
+		case optMiddleware:
+			ep.Middleware = opt.middle
+		}
+	}
+	p.Endpoints[method] = ep
+}
+
+func (p *Path) Get(handler any, desc string, opts ...EndpointOpt) {
+	p.addEndpoint(GET, handler, desc, opts)
+}
+
+func (p *Path) Post(handler any, desc string, opts ...EndpointOpt) {
+	p.addEndpoint(POST, handler, desc, opts)
+}
+
+func (p *Path) Put(handler any, desc string, opts ...EndpointOpt) {
+	p.addEndpoint(PUT, handler, desc, opts)
+}
+
+func (p *Path) Patch(handler any, desc string, opts ...EndpointOpt) {
+	p.addEndpoint(PATCH, handler, desc, opts)
+}
+
+func (p *Path) Delete(handler any, desc string, opts ...EndpointOpt) {
+	p.addEndpoint(DELETE, handler, desc, opts)
 }
 
 type HttpServer struct {
 	ServerTemplate string
 	ClientTemplate string
-	Routes         RootPath
+	Routes         *Path
 	OutputFile     io.Writer
 	ValidateUrl    string
 }
 
 type OpenAPIConfig struct {
-	Routes     RootPath
+	Routes     *Path
 	OutputFile io.Writer
 	Title      string
 	Version    string
