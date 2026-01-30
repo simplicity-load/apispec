@@ -14,9 +14,9 @@ import (
 )
 
 func ParsePaths(config http.RootPath) (*repr.Path, error) {
-	return traversePathsIter(config, repr.PathStrings{})
+	return traversePathsIter(config, repr.PathStrings{}, repr.Middlewares{})
 }
-func traversePathsIter(route http.Path, paths []*repr.PathString) (*repr.Path, error) {
+func traversePathsIter(route http.Path, paths []*repr.PathString, parentMiddleware repr.Middlewares) (*repr.Path, error) {
 	ps, err := ParsePathString(route)
 	if err != nil {
 		return nil, e.ErrFailedAction("parse path string", err)
@@ -30,9 +30,18 @@ func traversePathsIter(route http.Path, paths []*repr.PathString) (*repr.Path, e
 		return nil, e.ErrFailedAction("parse endpoint", err)
 	}
 
+	middleware, err := parseMiddleware(route.Middlewares())
+	if err != nil {
+		return nil, e.ErrFailedAction("parse middleware", err)
+	}
+
+	accumulatedMiddleware := make(repr.Middlewares, 0, len(parentMiddleware)+len(middleware))
+	accumulatedMiddleware = append(accumulatedMiddleware, parentMiddleware...)
+	accumulatedMiddleware = append(accumulatedMiddleware, middleware...)
+
 	subPaths := make([]*repr.Path, 0)
 	for _, p := range route.SubPath() {
-		path, err := traversePathsIter(p, pathStrings)
+		path, err := traversePathsIter(p, pathStrings, accumulatedMiddleware)
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +51,7 @@ func traversePathsIter(route http.Path, paths []*repr.PathString) (*repr.Path, e
 	return &repr.Path{
 		PathString: *ps,
 		Endpoints:  endpoints,
-		Middleware: []repr.Middleware{},
+		Middleware: accumulatedMiddleware,
 		SubPath:    subPaths,
 	}, nil
 }
@@ -58,6 +67,18 @@ func parseEndpoints(httpEndpoints http.Endpoints, paths []*repr.PathString) ([]*
 		endpoints = append(endpoints, endpoint)
 	}
 	return endpoints, nil
+}
+
+func parseMiddleware(middlewareFns []any) (repr.Middlewares, error) {
+	middleware := make(repr.Middlewares, 0, len(middlewareFns))
+	for _, fn := range middlewareFns {
+		handler, err := parseFnIdents(fn)
+		if err != nil {
+			return nil, e.ErrFailedAction("parse middleware function", err)
+		}
+		middleware = append(middleware, (*repr.Middleware)(handler))
+	}
+	return middleware, nil
 }
 
 func parseFnIdents(fn any) (*repr.Handler, error) {

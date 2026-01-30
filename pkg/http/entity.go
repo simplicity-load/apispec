@@ -34,6 +34,7 @@ type RootPath struct {
 func (p RootPath) isPath()             {}
 func (p RootPath) SubPath() []Path     { return p.SubPaths }
 func (p RootPath) Endpoint() Endpoints { return p.Endpoints }
+func (p RootPath) Middlewares() []any  { return p.Middleware }
 
 type StaticPath struct {
 	Path       string
@@ -45,6 +46,7 @@ type StaticPath struct {
 func (p StaticPath) isPath()             {}
 func (p StaticPath) SubPath() []Path     { return p.SubPaths }
 func (p StaticPath) Endpoint() Endpoints { return p.Endpoints }
+func (p StaticPath) Middlewares() []any  { return p.Middleware }
 
 type ParamPath struct {
 	Path      string
@@ -55,11 +57,13 @@ type ParamPath struct {
 func (p ParamPath) isPath()             {}
 func (p ParamPath) SubPath() []Path     { return p.SubPaths }
 func (p ParamPath) Endpoint() Endpoints { return p.Endpoints }
+func (p ParamPath) Middlewares() []any  { return nil }
 
 type Path interface {
 	isPath()
 	SubPath() []Path
 	Endpoint() Endpoints
+	Middlewares() []any
 }
 
 type HttpServer struct {

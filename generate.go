@@ -198,9 +198,12 @@ func generateEndpointsIter(path *repr.Path, imports importSet, recievers recieve
 	for reciever, imp := range path.Endpoints.Recievers() {
 		recievers.add(reciever, imp)
 	}
+	for imp := range path.Middleware.Imports() {
+		imports.add(imp)
+	}
 
 	endpoints := make([]string, 0, len(path.Endpoints))
-	templatedEndpoints := templatedEndpoints(path.Endpoints, imports, recievers)
+	templatedEndpoints := templatedEndpoints(path.Endpoints, path.Middleware, imports, recievers)
 	endpoints = slices.AppendSeq(endpoints, templatedEndpoints)
 
 	for _, subPath := range path.SubPath {
@@ -213,11 +216,12 @@ func generateEndpointsIter(path *repr.Path, imports importSet, recievers recieve
 	return endpoints, nil
 }
 
-func templatedEndpoints(endpoints []*repr.Endpoint, imports importSet, recievers recieverSet) iter.Seq[string] {
+func templatedEndpoints(endpoints []*repr.Endpoint, middleware repr.Middlewares, imports importSet, recievers recieverSet) iter.Seq[string] {
 	t, err := template.New("").Funcs(template.FuncMap{
-		"pathToString":      repr.PathToURL,
-		"httpMethodToFiber": httpMethodToFiber,
-		"generateParams":    generateParams,
+		"pathToString":         repr.PathToURL,
+		"httpMethodToFiber":    httpMethodToFiber,
+		"generateParams":       generateParams,
+		"formatMiddleware":     formatMiddleware,
 	}).Parse(endpointTemplate)
 	if err != nil {
 		panic(fmt.Sprintf("template parsing failed, template: %s, err: %s", t.DefinedTemplates(), err))
@@ -230,11 +234,15 @@ func templatedEndpoints(endpoints []*repr.Endpoint, imports importSet, recievers
 				IsGet         bool
 				ImportIdent   string
 				RecieverIdent string
+				Middleware    repr.Middlewares
+				Imports       importSet
 			}{
 				Endpoint:      endpoint,
 				IsGet:         endpoint.Method == http.GET,
 				ImportIdent:   imports.get(endpoint.Body.Import),
 				RecieverIdent: recievers.get(*endpoint.Handler.Reciever, endpoint.Handler.Import),
+				Middleware:    middleware,
+				Imports:       imports,
 			})
 			if err != nil {
 				panic(err)
@@ -251,6 +259,26 @@ func templatedEndpoints(endpoints []*repr.Endpoint, imports importSet, recievers
 func httpMethodToFiber(method http.Method) string {
 	x := string(method)
 	return strings.ToUpper(x[:1]) + strings.ToLower(x[1:])
+}
+
+func formatMiddleware(middleware repr.Middlewares, imports importSet) iter.Seq[string] {
+	return func(yield func(x string) bool) {
+		for _, m := range middleware {
+			var formatted string
+			if m.Reciever != nil {
+				formatted = fmt.Sprintf("%s.%s", 
+					imports.get(m.Import), 
+					m.Name)
+			} else {
+				formatted = fmt.Sprintf("%s.%s", 
+					imports.get(m.Import), 
+					m.Name)
+			}
+			if !yield(formatted) {
+				return
+			}
+		}
+	}
 }
 
 func serializationToFunctionName(t repr.SerializationType) (string, bool) {
@@ -318,7 +346,8 @@ func generateParams(body *repr.Data) iter.Seq[string] {
 
 const endpointTemplate = `app.{{ .Method | httpMethodToFiber }}(
 		"{{ .Path | pathToString }}",
-		func(c *fiber.Ctx) error {
+		{{ range .Middleware | formatMiddleware .Imports }}{{.}},
+		{{ end }}func(c *fiber.Ctx) error {
 			body := &{{ .ImportIdent }}.{{ .Body.Name }}{}
 
 			{{ if not .IsGet }}
