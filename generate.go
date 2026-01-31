@@ -243,23 +243,27 @@ var getParamsTemplate = sync.OnceValue(func() *template.Template {
 func templatedEndpoints(endpoints []*repr.Endpoint, middleware repr.Middlewares, imports importSet, recievers recieverSet) iter.Seq[string] {
 	t := getEndpointTemplate()
 
+	type templateData struct {
+		*repr.Endpoint
+		IsGet         bool
+		ImportIdent   string
+		RecieverIdent string
+		Middleware    repr.Middlewares
+		Imports       importSet
+	}
+	data := templateData{
+		Middleware: middleware,
+		Imports:    imports,
+	}
+
 	return func(yield func(x string) bool) {
 		for _, endpoint := range endpoints {
-			s, err := templateToString(t, struct {
-				*repr.Endpoint
-				IsGet         bool
-				ImportIdent   string
-				RecieverIdent string
-				Middleware    repr.Middlewares
-				Imports       importSet
-			}{
-				Endpoint:      endpoint,
-				IsGet:         endpoint.Method == http.GET,
-				ImportIdent:   imports.get(endpoint.Body.Import),
-				RecieverIdent: recievers.get(*endpoint.Handler.Reciever, endpoint.Handler.Import),
-				Middleware:    middleware,
-				Imports:       imports,
-			})
+			data.Endpoint = endpoint
+			data.IsGet = endpoint.Method == http.GET
+			data.ImportIdent = imports.get(endpoint.Body.Import)
+			data.RecieverIdent = recievers.get(*endpoint.Handler.Reciever, endpoint.Handler.Import)
+
+			s, err := templateToString(t, data)
 			if err != nil {
 				panic(err)
 			}
