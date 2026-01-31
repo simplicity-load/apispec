@@ -334,8 +334,17 @@ type param struct {
 	FunctionName  string
 }
 
+var bufferPool = sync.Pool{
+	New: func() any {
+		return new(bytes.Buffer)
+	},
+}
+
 func templateToString(t *template.Template, data any) (string, error) {
-	b := bytes.NewBuffer(nil)
+	b := bufferPool.Get().(*bytes.Buffer)
+	b.Reset()
+	defer bufferPool.Put(b)
+	
 	err := t.Execute(b, data)
 	if err != nil {
 		return "", fmt.Errorf("template parsing failed, template: %s, data: %+v, err: %w", t.DefinedTemplates(), data, err)
