@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/simplicity-load/apispec/pkg/http"
@@ -216,7 +217,7 @@ func generateEndpointsIter(path *repr.Path, imports importSet, recievers recieve
 	return endpoints, nil
 }
 
-func templatedEndpoints(endpoints []*repr.Endpoint, middleware repr.Middlewares, imports importSet, recievers recieverSet) iter.Seq[string] {
+var getEndpointTemplate = sync.OnceValue(func() *template.Template {
 	t, err := template.New("").Funcs(template.FuncMap{
 		"pathToString":      repr.PathToURL,
 		"httpMethodToFiber": httpMethodToFiber,
@@ -226,6 +227,11 @@ func templatedEndpoints(endpoints []*repr.Endpoint, middleware repr.Middlewares,
 	if err != nil {
 		panic(fmt.Sprintf("template parsing failed, template: %s, err: %s", t.DefinedTemplates(), err))
 	}
+	return t
+})
+
+func templatedEndpoints(endpoints []*repr.Endpoint, middleware repr.Middlewares, imports importSet, recievers recieverSet) iter.Seq[string] {
+	t := getEndpointTemplate()
 
 	return func(yield func(x string) bool) {
 		for _, endpoint := range endpoints {
