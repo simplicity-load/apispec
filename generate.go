@@ -230,6 +230,16 @@ var getEndpointTemplate = sync.OnceValue(func() *template.Template {
 	return t
 })
 
+var getParamsTemplate = sync.OnceValue(func() *template.Template {
+	t, err := template.New("").Parse(
+		`body.{{ .Name }} = {{ .FunctionName }}("{{ .Serialization }}")`,
+	)
+	if err != nil {
+		panic(fmt.Sprintf("template parsing failed, template: %s, err: %s", t.DefinedTemplates(), err))
+	}
+	return t
+})
+
 func templatedEndpoints(endpoints []*repr.Endpoint, middleware repr.Middlewares, imports importSet, recievers recieverSet) iter.Seq[string] {
 	t := getEndpointTemplate()
 
@@ -330,12 +340,7 @@ func templateToString(t *template.Template, data any) (string, error) {
 }
 
 func generateParams(body *repr.Data) iter.Seq[string] {
-	t, err := template.New("").Parse(
-		`body.{{ .Name }} = {{ .FunctionName }}("{{ .Serialization }}")`,
-	)
-	if err != nil {
-		panic(fmt.Sprintf("template parsing failed, template: %s, err: %s", t.DefinedTemplates(), err))
-	}
+	t := getParamsTemplate()
 
 	return func(yield func(x string) bool) {
 		for p := range toSimplifiedParams(body) {
