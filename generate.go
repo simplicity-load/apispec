@@ -8,11 +8,55 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/simplicity-load/apispec/pkg/http"
 	repr "github.com/simplicity-load/apispec/pkg/repr/http"
 )
+
+var getParamTemplate = sync.OnceValue(func() *template.Template {
+	t, err := template.New("").Parse(
+		`body.{{ .Name }} = {{ .FunctionName }}("{{ .Serialization }}")`,
+	)
+	if err != nil {
+		panic(err)
+	}
+	return t
+})
+
+func getRegisterTemplate(imports importSet) *template.Template {
+	return sync.OnceValue(func() *template.Template {
+		t, err := template.New("").Funcs(template.FuncMap{
+			"importIdent": func(imp string) string {
+				return imports.get(imp)
+			},
+			"isPointer": func(isPointer bool) string {
+				if isPointer {
+					return "*"
+				}
+				return ""
+			},
+		}).Parse(registerTemplate)
+		if err != nil {
+			panic(err)
+		}
+		return t
+	})()
+}
+
+var getEndpointTemplate = sync.OnceValue(func() *template.Template {
+	t, err := template.New("").Funcs(template.FuncMap{
+		"pathToString":      repr.PathToURL,
+		"httpMethodToFiber": httpMethodToFiber,
+		"generateParams":    generateParams,
+		"formatMiddleware":  formatMiddleware,
+	}).Parse(endpointTemplate)
+	if err != nil {
+		panic(err)
+	}
+	return t
+})
 
 type set[T comparable] map[T]uint
 
@@ -147,21 +191,7 @@ func generate(
 		return err
 	}
 
-	t, err := template.New("").Funcs(template.FuncMap{
-		"importIdent": func(imp string) string {
-			return imports.get(imp)
-		},
-		"isPointer": func(isPointer bool) string {
-			if isPointer {
-				return "*"
-			}
-			return ""
-		},
-	}).Parse(registerTemplate)
-	if err != nil {
-		panic(fmt.Sprintf("template parsing failed, err: %s", err))
-	}
-
+	t := getRegisterTemplate(imports)
 	gen, err := templateToString(t, struct {
 		Recievers      iter.Seq[reciever]
 		Imports        iter.Seq[importer]
@@ -217,15 +247,7 @@ func generateEndpointsIter(path *repr.Path, imports importSet, recievers recieve
 }
 
 func templatedEndpoints(endpoints []*repr.Endpoint, middleware repr.Middlewares, imports importSet, recievers recieverSet) iter.Seq[string] {
-	t, err := template.New("").Funcs(template.FuncMap{
-		"pathToString":      repr.PathToURL,
-		"httpMethodToFiber": httpMethodToFiber,
-		"generateParams":    generateParams,
-		"formatMiddleware":  formatMiddleware,
-	}).Parse(endpointTemplate)
-	if err != nil {
-		panic(fmt.Sprintf("template parsing failed, template: %s, err: %s", t.DefinedTemplates(), err))
-	}
+	t := getEndpointTemplate()
 
 	return func(yield func(x string) bool) {
 		for _, endpoint := range endpoints {
@@ -314,8 +336,14 @@ type param struct {
 	FunctionName  string
 }
 
+var bufferPool = sync.Pool{
+	New: func() any { return bytes.NewBuffer(nil) },
+}
+
 func templateToString(t *template.Template, data any) (string, error) {
-	b := bytes.NewBuffer(nil)
+	b := bufferPool.Get().(*bytes.Buffer)
+	b.Reset()
+	defer bufferPool.Put(b)
 	err := t.Execute(b, data)
 	if err != nil {
 		return "", fmt.Errorf("template parsing failed, template: %s, data: %+v, err: %w", t.DefinedTemplates(), data, err)
@@ -324,12 +352,7 @@ func templateToString(t *template.Template, data any) (string, error) {
 }
 
 func generateParams(body *repr.Data) iter.Seq[string] {
-	t, err := template.New("").Parse(
-		`body.{{ .Name }} = {{ .FunctionName }}("{{ .Serialization }}")`,
-	)
-	if err != nil {
-		panic(fmt.Sprintf("template parsing failed, template: %s, err: %s", t.DefinedTemplates(), err))
-	}
+	t := getParamTemplate()
 
 	return func(yield func(x string) bool) {
 		for p := range toSimplifiedParams(body) {
