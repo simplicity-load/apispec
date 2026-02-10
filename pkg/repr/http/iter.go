@@ -34,14 +34,14 @@ func (endpoints Endpoints) Imports() iter.Seq[string] {
 	}
 }
 
-func (endpoints Endpoints) Recievers() iter.Seq2[Reciever, string] {
-	return func(yield func(x Reciever, imp string) bool) {
+func (endpoints Endpoints) Recievers() iter.Seq2[*Reciever, string] {
+	return func(yield func(x *Reciever, imp string) bool) {
 		for _, endpoint := range endpoints {
 			method := endpoint.Handler.Reciever
 			if method == nil {
 				continue
 			}
-			if !yield(*method, endpoint.Handler.Import) {
+			if !yield(method, endpoint.Handler.Import) {
 				return
 			}
 		}

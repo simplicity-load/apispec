@@ -33,13 +33,13 @@ func traversePathsIter(route *http.Path, paths []*repr.PathString, parentMiddlew
 		return nil, e.ErrFailedAction("parse middleware", err)
 	}
 
-	accumulatedMiddleware := make(repr.Middlewares, 0, len(parentMiddleware)+len(middleware))
-	accumulatedMiddleware = append(accumulatedMiddleware, parentMiddleware...)
-	accumulatedMiddleware = append(accumulatedMiddleware, middleware...)
+	middlewareAcc := make(repr.Middlewares, 0, len(parentMiddleware)+len(middleware))
+	middlewareAcc = append(middlewareAcc, parentMiddleware...)
+	middlewareAcc = append(middlewareAcc, middleware...)
 
 	subPaths := make([]*repr.Path, 0)
 	for _, p := range route.SubPaths {
-		path, err := traversePathsIter(p, pathStrings, accumulatedMiddleware)
+		path, err := traversePathsIter(p, pathStrings, middlewareAcc)
 		if err != nil {
 			return nil, err
 		}
@@ -49,7 +49,7 @@ func traversePathsIter(route *http.Path, paths []*repr.PathString, parentMiddlew
 	return &repr.Path{
 		PathString: *ps,
 		Endpoints:  endpoints,
-		Middleware: accumulatedMiddleware,
+		Middleware: middlewareAcc,
 		SubPath:    subPaths,
 	}, nil
 }
