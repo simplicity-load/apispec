@@ -3,6 +3,7 @@ package apispec
 import (
 	"fmt"
 
+	generate "github.com/simplicity-load/apispec/pkg/gen"
 	"github.com/simplicity-load/apispec/pkg/gen/openapi"
 	"github.com/simplicity-load/apispec/pkg/http"
 	"github.com/simplicity-load/apispec/pkg/parse/server"
@@ -23,7 +24,7 @@ func Generate(config http.HttpServer) error {
 	if err != nil {
 		return fmt.Errorf("failed traversing paths: %w", err)
 	}
-	err = generate(repr.Representation{
+	err = generate.Generate(repr.Representation{
 		Routes: paths,
 	}, config.OutputFile, config.ValidateUrl)
 	if err != nil {
