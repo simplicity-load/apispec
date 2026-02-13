@@ -2,7 +2,8 @@
 
 {{ define "path" }}"{{ .Path | pathToString }}"{{ end }}
 
-{{ define "custom_param" }}body.{{ .Name }} = {{ .FunctionName }}("{{ .Serialization }}"){{ end }}
+{{ define "custom_req_param" }}body.{{ .Name }} = {{ .FunctionName }}("{{ .Serialization }}"){{ end }}
+{{ define "custom_resp_param" }}c.{{ .FunctionName }}("{{ .Serialization }}", res.{{ .Name}}){{ end }}
 
 {{ define "endpoint" }}{{ .AppIdent }}.{{ .Method | httpMethodToFnIdent }}(
 		{{ template "path" . }},
@@ -16,7 +17,7 @@
 			}
 			{{ end }}
 
-			{{ range .Body | toSimplifiedParams }}{{ template "custom_param" . }}
+			{{ range .Body | toRequestParams }}{{ template "custom_req_param" . }}
 			{{ end }}
 
 			err := v.Struct(body)
@@ -31,6 +32,9 @@
 			if err != nil {
 				return c.Status(fiber.StatusInternalServerError).JSON(struct{ Err string }{Err: "InternalServerError"})
 			}
+
+			{{ range .Response | toRespParams }}{{ template "custom_resp_param" . }}
+			{{ end }}
 
 			return c.JSON(res)
 		},

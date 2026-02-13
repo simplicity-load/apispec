@@ -54,15 +54,23 @@ type Reciever struct {
 type SerializationType string
 
 const (
-	SerializationJSON  SerializationType = "JSON"
-	SerializationQUERY SerializationType = "QUERY"
-	SerializationPATH  SerializationType = "PATH"
+	SerializationJSON   SerializationType = "JSON"
+	SerializationQUERY  SerializationType = "QUERY"
+	SerializationPATH   SerializationType = "PATH"
+	SerializationHEADER SerializationType = "HEADER"
 )
 
 var ValidSerializationTypes = []SerializationType{
 	SerializationJSON,
 	SerializationQUERY,
 	SerializationPATH,
+	SerializationHEADER,
+}
+
+var ApiSpecSerializationTypes = []SerializationType{
+	SerializationQUERY,
+	SerializationPATH,
+	SerializationHEADER,
 }
 
 type Serialization struct {

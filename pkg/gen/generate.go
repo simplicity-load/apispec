@@ -33,7 +33,8 @@ func getRegisterTemplate(imports importSet[sorted], recievers recieverSet[sorted
 			},
 			"httpMethodToFnIdent": httpMethodToFiber,
 			"pathToString":        repr.PathToURL,
-			"toSimplifiedParams":  toSimplifiedParams,
+			"toRequestParams":     toRequestParams,
+			"toRespParams":        toRespParams,
 		}).Parse(templ)
 		if err != nil {
 			panic(err)
@@ -170,28 +171,46 @@ func formatMiddleware(
 	return formatted
 }
 
-func serializationToFunctionName(t repr.SerializationType) (string, bool) {
+func toRequestParams(data *repr.Data) []*param {
+	return toParams(serializationToRequestFiber)(data)
+}
+func serializationToRequestFiber(t repr.SerializationType) (string, bool) {
 	fnName, ok := map[repr.SerializationType]string{
-		repr.SerializationPATH:  "c.Params",
-		repr.SerializationQUERY: "c.Query",
+		repr.SerializationPATH:   "c.Params",
+		repr.SerializationQUERY:  "c.Query",
+		repr.SerializationHEADER: "c.Get",
 	}[t]
 	return fnName, ok
 }
 
-func toSimplifiedParams(body *repr.Data) []*param {
-	params := make([]*param, 0, len(body.Fields))
-	for _, fields := range body.Fields {
-		fnName, ok := serializationToFunctionName(fields.Serialization.Type)
-		if !ok {
-			continue
+func toRespParams(data *repr.Data) []*param {
+	return toParams(serializationToRespFiber)(data)
+}
+func serializationToRespFiber(t repr.SerializationType) (string, bool) {
+	fnName, ok := map[repr.SerializationType]string{
+		repr.SerializationHEADER: "c.Set",
+	}[t]
+	return fnName, ok
+}
+
+func toParams(
+	fn func(repr.SerializationType) (string, bool),
+) func(data *repr.Data) []*param {
+	return func(data *repr.Data) []*param {
+		params := make([]*param, 0, len(data.Fields))
+		for _, fields := range data.Fields {
+			fnName, ok := fn(fields.Serialization.Type)
+			if !ok {
+				continue
+			}
+			params = append(params, &param{
+				Name:          fields.Name,
+				Serialization: fields.Serialization.Name,
+				FunctionName:  fnName,
+			})
 		}
-		params = append(params, &param{
-			Name:          fields.Name,
-			Serialization: fields.Serialization.Name,
-			FunctionName:  fnName,
-		})
+		return params
 	}
-	return params
 }
 
 type param struct {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"strings"
 
 	repr "github.com/simplicity-load/apispec/pkg/repr/http"
@@ -176,10 +177,9 @@ func convertDataToSchema(data *repr.Data) *Schema {
 
 	var required []string
 	for _, field := range data.Fields {
-		// Skip path and query params as they're handled separately
+		// Skip apispec params as they're handled separately
 		if field.Serialization != nil &&
-			(field.Serialization.Type == repr.SerializationPATH ||
-				field.Serialization.Type == repr.SerializationQUERY) {
+			slices.Contains(repr.ApiSpecSerializationTypes, field.Serialization.Type) {
 			continue
 		}
 

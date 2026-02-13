@@ -351,7 +351,7 @@ func parseSerialization(s reflect.StructField) (*repr.Serialization, error) {
 	if err != nil &&
 		// ignore no value, check for json tag aswell
 		!errors.Is(err, e.ErrNoValue) {
-		return nil, e.ErrFailedActionWithItemWanted("parse tag", "as", "<serialization_name>,(path|query)", err)
+		return nil, e.ErrFailedActionWithItemWanted("parse tag", "as", "<serialization_name>,(path|query|header)", err)
 	}
 	if as != nil {
 		return as, nil
@@ -381,16 +381,12 @@ func parseApiSpecTag(t reflect.StructTag) (*repr.Serialization, error) {
 	}
 	serType := strings.ToUpper(tagParts[1])
 
-	allowedSerializationTypes := []repr.SerializationType{
-		repr.SerializationQUERY,
-		repr.SerializationPATH,
-	}
 	typedSerType := repr.SerializationType(serType)
-	if !slices.Contains(allowedSerializationTypes, typedSerType) {
+	if !slices.Contains(repr.ApiSpecSerializationTypes, typedSerType) {
 		return nil, e.ErrBadValueFromList(
 			"serialization type",
 			typedSerType,
-			allowedSerializationTypes)
+			repr.ApiSpecSerializationTypes)
 	}
 
 	return &repr.Serialization{
