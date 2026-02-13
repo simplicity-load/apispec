@@ -189,6 +189,7 @@ func toRespParams(data *repr.Data) []*param {
 func serializationToRespFiber(t repr.SerializationType) (string, bool) {
 	fnName, ok := map[repr.SerializationType]string{
 		repr.SerializationHEADER: "c.Set",
+		repr.SerializationCOOKIE: "c.Set",
 	}[t]
 	return fnName, ok
 }
@@ -203,9 +204,16 @@ func toParams(
 			if !ok {
 				continue
 			}
+
+			serializationName := fields.Serialization.Name
+			if fields.Serialization.Type ==
+				repr.SerializationCOOKIE {
+				serializationName = "set-cookie"
+			}
+
 			params = append(params, &param{
 				Name:          fields.Name,
-				Serialization: fields.Serialization.Name,
+				Serialization: serializationName,
 				FunctionName:  fnName,
 			})
 		}
