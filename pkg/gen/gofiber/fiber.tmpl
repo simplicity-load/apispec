@@ -3,7 +3,7 @@
 {{ define "path" }}"{{ .Path | pathToString }}"{{ end }}
 
 {{ define "custom_req_param" }}body.{{ .Name }} = {{ .FunctionName }}("{{ .Serialization }}"){{ end }}
-{{ define "custom_resp_param" }}c.{{ .FunctionName }}("{{ .Serialization }}", res.{{ .Name}}){{ end }}
+{{ define "custom_resp_param" }}{{ .FunctionName }}("{{ .Serialization }}", res.{{ .Name}}){{ end }}
 
 {{ define "endpoint" }}{{ .AppIdent }}.{{ .Method | httpMethodToFnIdent }}(
 		{{ template "path" . }},

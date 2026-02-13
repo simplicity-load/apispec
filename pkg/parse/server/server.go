@@ -192,15 +192,15 @@ func parseData(s reflect.Type) (*repr.Data, error) {
 		return nil, FatalInvalidParam(s, reflect.Struct)
 	}
 
-	body, err := parseBodyField(s)
+	data, err := parseDataField(s)
 	if err != nil {
 		return nil, err
 	}
 
 	return &repr.Data{
-		Name:   body.Name,
+		Name:   data.Name,
 		Import: s.PkgPath(),
-		Fields: body.SubFields,
+		Fields: data.SubFields,
 	}, nil
 }
 
@@ -227,7 +227,7 @@ func structFieldIter(s reflect.Type) iter.Seq[reflect.StructField] {
 	}
 }
 
-func parseBodyField(s reflect.Type) (*repr.StructField, error) {
+func parseDataField(s reflect.Type) (*repr.StructField, error) {
 	T, err := extractFieldType(s)
 	if err != nil {
 		return nil, err
@@ -252,7 +252,7 @@ func parseBodyField(s reflect.Type) (*repr.StructField, error) {
 }
 
 func parseArraySlice(s reflect.Type) (*repr.StructField, error) {
-	bf, err := parseBodyField(s.Elem())
+	bf, err := parseDataField(s.Elem())
 	if err != nil {
 		return nil, err
 	}
@@ -263,29 +263,29 @@ func parseArraySlice(s reflect.Type) (*repr.StructField, error) {
 }
 
 func parseStruct(s reflect.Type) (*repr.StructField, error) {
-	bfs := make([]*repr.StructField, 0, s.NumField())
+	dfs := make([]*repr.StructField, 0, s.NumField())
 	for f := range structFieldIter(s) {
 		serialization, validation, err := parseFieldTag(f)
 		if err != nil {
 			return nil, e.ErrFailedActionWithItem("parse field tag", f.Name, err)
 		}
 
-		bf, err := parseBodyField(f.Type)
+		df, err := parseDataField(f.Type)
 		if err != nil {
-			return nil, e.ErrFailedActionWithItem("parse body field", f.Name, err)
+			return nil, e.ErrFailedActionWithItem("parse data field", f.Name, err)
 		}
-		bfs = append(bfs, &repr.StructField{
+		dfs = append(dfs, &repr.StructField{
 			Name:          f.Name,
 			Serialization: serialization,
 			Validation:    validation,
-			Type:          bf.Type,
-			SubFields:     bf.SubFields,
+			Type:          df.Type,
+			SubFields:     df.SubFields,
 		})
 	}
 	return &repr.StructField{
 		Name:      s.Name(),
 		Type:      reflect.Struct,
-		SubFields: bfs,
+		SubFields: dfs,
 	}, nil
 }
 
@@ -303,7 +303,7 @@ func parseMap(s reflect.Type) (*repr.StructField, error) {
 	}
 
 	v := s.Elem()
-	vF, err := parseBodyField(v)
+	vF, err := parseDataField(v)
 	if err != nil {
 		return nil, err
 	}
@@ -333,6 +333,7 @@ func parseFieldTag(s reflect.StructField) (
 		return nil, nil,
 			e.ErrFailedAction("parse serialization", err)
 	}
+	// TODO check, if response body, any non json tag should accompanied with `json:"-"`
 
 	validation, err = parseValidation(s)
 	if err != nil {
