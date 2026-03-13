@@ -376,18 +376,18 @@ func parseApiSpecTag(t reflect.StructTag) (*repr.Serialization, error) {
 		return nil, e.ErrBadValue("number of tag values", len(tagParts), 2)
 	}
 
-	name := tagParts[0]
-	if !isAllLowerA_Z(name) {
-		return nil, ErrBadOnlyLowerAndDashFormatting(name)
-	}
-	serType := strings.ToUpper(tagParts[1])
-
+	serType := strings.ToUpper(tagParts[0])
 	typedSerType := repr.SerializationType(serType)
 	if !slices.Contains(repr.ApiSpecSerializationTypes, typedSerType) {
 		return nil, e.ErrBadValueFromList(
 			"serialization type",
 			typedSerType,
 			repr.ApiSpecSerializationTypes)
+	}
+
+	name := tagParts[1]
+	if !isAllLowerA_Z(name) {
+		return nil, ErrBadOnlyLowerAndDashFormatting(name)
 	}
 
 	return &repr.Serialization{

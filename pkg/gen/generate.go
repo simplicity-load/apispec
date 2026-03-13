@@ -120,6 +120,9 @@ func generateEndpointsIter(
 	for reciever, imp := range path.Endpoints.Recievers() {
 		recievers.add(reciever, imp)
 	}
+	for reciever, imp := range path.Middleware.Recievers() {
+		recievers.add(reciever, imp)
+	}
 
 	endpointAcc := make([]endpointTemplateData, len(path.Endpoints))
 	for i, e := range path.Endpoints {
@@ -189,7 +192,7 @@ func toRespParams(data *repr.Data) []*param {
 func serializationToRespFiber(t repr.SerializationType) (string, bool) {
 	fnName, ok := map[repr.SerializationType]string{
 		repr.SerializationHEADER: "c.Set",
-		repr.SerializationCOOKIE: "c.Set",
+		repr.SerializationCOOKIE: "c.Append",
 	}[t]
 	return fnName, ok
 }

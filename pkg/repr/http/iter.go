@@ -48,13 +48,27 @@ func (endpoints Endpoints) Recievers() iter.Seq2[*Reciever, string] {
 	}
 }
 
-func (middleware Middlewares) Imports() iter.Seq[string] {
+func (middlewares Middlewares) Imports() iter.Seq[string] {
 	return func(yield func(x string) bool) {
-		for _, m := range middleware {
+		for _, m := range middlewares {
 			if m.Import == "" {
 				continue
 			}
 			if !yield(m.Import) {
+				return
+			}
+		}
+	}
+}
+
+func (middlewares Middlewares) Recievers() iter.Seq2[*Reciever, string] {
+	return func(yield func(x *Reciever, imp string) bool) {
+		for _, middleware := range middlewares {
+			method := middleware.Reciever
+			if method == nil {
+				continue
+			}
+			if !yield(method, middleware.Import) {
 				return
 			}
 		}
