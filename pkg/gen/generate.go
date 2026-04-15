@@ -182,6 +182,7 @@ func serializationToRequestFiber(t repr.SerializationType) (string, bool) {
 		repr.SerializationPATH:   "c.Params",
 		repr.SerializationQUERY:  "c.Query",
 		repr.SerializationHEADER: "c.Get",
+		repr.SerializationLOCALS: "c.Locals",
 	}[t]
 	return fnName, ok
 }

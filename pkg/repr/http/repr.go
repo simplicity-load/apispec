@@ -59,6 +59,7 @@ const (
 	SerializationPATH   SerializationType = "PATH"
 	SerializationHEADER SerializationType = "HEADER"
 	SerializationCOOKIE SerializationType = "COOKIE"
+	SerializationLOCALS SerializationType = "LOCALS"
 )
 
 var ValidSerializationTypes = []SerializationType{
@@ -67,6 +68,7 @@ var ValidSerializationTypes = []SerializationType{
 	SerializationPATH,
 	SerializationHEADER,
 	SerializationCOOKIE,
+	SerializationLOCALS,
 }
 
 var ApiSpecSerializationTypes = []SerializationType{
@@ -74,6 +76,7 @@ var ApiSpecSerializationTypes = []SerializationType{
 	SerializationPATH,
 	SerializationHEADER,
 	SerializationCOOKIE,
+	SerializationLOCALS,
 }
 
 type Serialization struct {

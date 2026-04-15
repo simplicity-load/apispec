@@ -4,8 +4,7 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
-
-	e "github.com/simplicity-load/apispec/pkg/errors"
+	// e "github.com/simplicity-load/apispec/pkg/errors"
 )
 
 var intTypes = []reflect.Kind{
@@ -55,26 +54,17 @@ func extractFieldTypeIter(s reflect.Type, indirectionLevel int) (reflect.Type, e
 		return nil, ErrSinglePointerRequired
 	}
 
+	K := s.Kind()
 	switch {
-	case s.Kind() == reflect.Pointer:
+	case K == reflect.Pointer:
 		return extractFieldTypeIter(s.Elem(), indirectionLevel+1)
-	case s.Kind() == reflect.Float32, s.Kind() == reflect.Float64:
+	case K == reflect.Float32, K == reflect.Float64:
 		return nil, ErrNoFloat
-	case slices.Contains(allowedFieldTypes, s.Kind()):
+	case slices.Contains(allowedFieldTypes, K):
 		return s, nil
 	default:
-		return nil, e.ErrBadValueFromList("type", s.Kind(), allowedFieldTypes)
+		return s, nil
+		// TODO: extract sanity checking to post parsing
+		// return nil, e.ErrBadValueFromList("type", K, allowedFieldTypes)
 	}
-}
-
-func typeNameFromList[T any](s []T) []string {
-	result := make([]string, 0, len(s))
-	for _, x := range s {
-		result = append(result, typeName(x))
-	}
-	return result
-}
-
-func typeName[T any](x T) string {
-	return reflect.TypeOf(x).Name()
 }

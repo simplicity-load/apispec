@@ -123,7 +123,7 @@ func parseHandler(ep http.Endpoint, method http.Method, paths []*repr.PathString
 
 	response, err := parseData(resType)
 	if err != nil {
-		return nil, e.ErrFailedActionWithItem("parse response", reqType.Name(), err)
+		return nil, e.ErrFailedActionWithItem("parse response", resType.Name(), err)
 	}
 
 	// Parse endpoint-level middleware
@@ -192,7 +192,7 @@ func parseData(s reflect.Type) (*repr.Data, error) {
 		return nil, FatalInvalidParam(s, reflect.Struct)
 	}
 
-	data, err := parseDataField(s)
+	data, err := parseDataField(s, false)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +227,7 @@ func structFieldIter(s reflect.Type) iter.Seq[reflect.StructField] {
 	}
 }
 
-func parseDataField(s reflect.Type) (*repr.StructField, error) {
+func parseDataField(s reflect.Type, isAnyAllowed bool) (*repr.StructField, error) {
 	T, err := extractFieldType(s)
 	if err != nil {
 		return nil, err
@@ -246,13 +246,18 @@ func parseDataField(s reflect.Type) (*repr.StructField, error) {
 	case reflect.Map:
 		return parseMap(T)
 	default:
-		// Bad types are caught on type extraction
+		if isAnyAllowed {
+			return &repr.StructField{
+				Type: s.Kind(),
+			}, nil
+		}
+		// TODO Bad types are caught on sanity checking
 		return nil, ErrFatalUnreachable
 	}
 }
 
 func parseArraySlice(s reflect.Type) (*repr.StructField, error) {
-	bf, err := parseDataField(s.Elem())
+	bf, err := parseDataField(s.Elem(), false)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +275,7 @@ func parseStruct(s reflect.Type) (*repr.StructField, error) {
 			return nil, e.ErrFailedActionWithItem("parse field tag", f.Name, err)
 		}
 
-		df, err := parseDataField(f.Type)
+		df, err := parseDataField(f.Type, true)
 		if err != nil {
 			return nil, e.ErrFailedActionWithItem("parse data field", f.Name, err)
 		}
@@ -303,7 +308,7 @@ func parseMap(s reflect.Type) (*repr.StructField, error) {
 	}
 
 	v := s.Elem()
-	vF, err := parseDataField(v)
+	vF, err := parseDataField(v, false)
 	if err != nil {
 		return nil, err
 	}
