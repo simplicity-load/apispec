@@ -1,6 +1,7 @@
 package apispec
 
 import (
+	"errors"
 	"fmt"
 
 	generate "github.com/simplicity-load/apispec/pkg/gen"
@@ -10,7 +11,15 @@ import (
 	repr "github.com/simplicity-load/apispec/pkg/repr/http"
 )
 
-func Generate(config http.HttpServer) error {
+func ParseServer(root *http.Path) (*repr.Path, error) {
+	paths, err := server.ParsePaths(root)
+	if err != nil {
+		return nil, fmt.Errorf("failed traversing paths: %w", err)
+	}
+	return paths, nil
+}
+
+func Generate(routes *repr.Path, config http.HttpServer) error {
 	// for servers
 	// get all info, such as pathparams and queryparams
 	// start constructing endpoints based on templates
@@ -20,38 +29,31 @@ func Generate(config http.HttpServer) error {
 	// get all info, such as pathparams and queryparams
 	// start constructing callers based on templates
 	// output them on specified folders
-	paths, err := server.ParsePaths(config.Routes)
-	if err != nil {
-		return fmt.Errorf("failed traversing paths: %w", err)
-	}
-	err = generate.Generate(repr.Representation{
-		Routes: paths,
-	}, config.OutputFile, config.ValidateUrl)
+	err := generate.Generate(
+		routes,
+		config.OutputFile,
+		config.ValidateUrl)
 	if err != nil {
 		return fmt.Errorf("failed generating: %w", err)
 	}
 	return nil
 }
 
-func GenerateOpenAPI(config http.OpenAPIConfig) error {
-	// Parse the routes to get structured representation
-	paths, err := server.ParsePaths(config.Routes)
-	if err != nil {
-		return fmt.Errorf("failed parsing paths: %w", err)
+func GenerateOpenAPI(routes *repr.Path, config http.OpenAPIConfig) error {
+	if config.Title == "" {
+		return errors.New("missing title")
+	}
+	if config.Version == "" {
+		return errors.New("missing version")
 	}
 
-	// Set defaults for optional fields
-	title := config.Title
-	if title == "" {
-		title = "API Specification"
-	}
-	version := config.Version
-	if version == "" {
-		version = "1.0.0"
-	}
-
-	// Generate OpenAPI specification
-	err = openapi.Generate(paths, config.OutputFile, title, version, config.ServerURL)
+	err := openapi.Generate(
+		routes,
+		config.OutputFile,
+		config.Title,
+		config.Version,
+		config.ServerURL,
+	)
 	if err != nil {
 		return fmt.Errorf("failed generating OpenAPI spec: %w", err)
 	}

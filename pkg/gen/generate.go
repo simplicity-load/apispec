@@ -44,13 +44,13 @@ func getRegisterTemplate(imports importSet[sorted], recievers recieverSet[sorted
 }
 
 func Generate(
-	representation repr.Representation,
+	routes *repr.Path,
 	output io.Writer,
 	validateUrl string,
 ) error {
 	imports := newImportSet()
 	recievers := newRecieverSet()
-	endpoints := generateEndpoints(representation.Routes, imports, recievers)
+	endpoints := generateEndpoints(routes, imports, recievers)
 
 	impSortSet, impSort := imports.sort()
 	recvSortSet, recvSort := recievers.sort()
@@ -68,6 +68,7 @@ func Generate(
 			Middleware:    e.Middleware,
 			RecieverIdent: recvIdent,
 			ImportIdent:   impIdent,
+			HasStatus:     e.HasStatus,
 		}
 	}
 
@@ -83,7 +84,7 @@ func Generate(
 		Endpoints:      enrinchedEndpoints,
 		ValidateImport: validateUrl,
 		SetupImports: []string{
-			"github.com/gofiber/fiber/v2",
+			"github.com/gofiber/fiber/v3",
 			validateUrl,
 		},
 	}
@@ -130,6 +131,7 @@ func generateEndpointsIter(
 			Endpoint:   e,
 			IsGet:      e.Method == http.GET,
 			Middleware: path.Middleware,
+			HasStatus:  e.Response.HasCustomStatus(),
 		}
 	}
 
@@ -147,6 +149,7 @@ type endpointTemplateData struct {
 	RecieverIdent string
 	Middleware    repr.Middlewares
 	AppIdent      string
+	HasStatus     bool
 }
 
 func httpMethodToFiber(method http.Method) string {

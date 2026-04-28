@@ -1,6 +1,8 @@
 package http
 
-import "iter"
+import (
+	"iter"
+)
 
 func (ps PathStrings) NoRootPaths() iter.Seq[*PathString] {
 	return func(yield func(x *PathString) bool) {
@@ -73,4 +75,14 @@ func (middlewares Middlewares) Recievers() iter.Seq2[*Reciever, string] {
 			}
 		}
 	}
+}
+
+func (data *Data) HasCustomStatus() bool {
+	for _, f := range data.Fields {
+		if f.Name == "Status" {
+			return true
+		}
+	}
+	return false
+
 }

@@ -1,3 +1,4 @@
+// Internal representation of HTTP Server
 package http
 
 import (
@@ -111,38 +112,3 @@ type Path struct {
 }
 
 type Endpoints []*Endpoint
-
-type Representation struct {
-	Routes         *Path
-	ErrorStatusMap map[error]int
-}
-
-// const a = `
-// 	paths: [
-// 		{
-// 			path: "user",
-// 			isParam: true,
-// 			endpoints: [
-// 				{
-// 					method: GET,
-// 					path: "user/blah/:name",
-// 					pathparams: ["user", ":name"],
-// 					queryparams: ["x","y","z"],
-// 					authz: ["can_do_this", "can_do_that"],
-// 					body: {
-// 						name: "entity.GetUserByNameResponse",
-// 						fields: {
-// 							"blah": {
-// 								validation: "required,blah,blah,blah",
-// 								type: "query" | path | json // possibly file etc
-// 								subfield:
-// 							}
-// 						}
-// 					},
-// 					res: "entity.GetUserByNameResponse",
-// 					handler: "GetUserByName",
-// 				}
-// 			]
-// 		}
-// 	]
-// `

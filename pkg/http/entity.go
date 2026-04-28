@@ -116,7 +116,6 @@ func (p *Path) Delete(handler any, desc string, opts ...EndpointOpt) {
 type HttpServer struct {
 	ServerTemplate string
 	ClientTemplate string
-	Routes         *Path
 	OutputFile     io.Writer
 	ValidateUrl    string
 }
