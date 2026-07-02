@@ -3,7 +3,7 @@
 {{ define "path" }}"{{ .Path | pathToString }}"{{ end }}
 
 {{ define "custom_req_param" }}body.{{ .Name }} = {{ .FunctionName }}("{{ .Serialization }}"){{ end }}
-{{ define "custom_resp_param" }}{{ .FunctionName }}("{{ .Serialization }}", resp.{{ .Name}}){{ end }}
+{{ define "custom_resp_param" }}{{ .FunctionName }}("{{ .Serialization }}", resp.Data.{{ .Name}}){{ end }}
 
 {{ define "endpoint" }}{{ .AppIdent }}.{{ .Method | httpMethodToFnIdent }}(
 		{{ template "path" . }},
@@ -36,10 +36,10 @@
 			{{ range .Response | toRespParams }}{{ template "custom_resp_param" . }}
 			{{ end }}
 
-			{{ if .HasStatus }}
-			return respHandler(c, resp, resp.Status)
+			{{ if .ResponseKind | isHTML }}
+			return htmlRespHandler(c, resp.Data, resp.Status, resp.Template)
 			{{ else }}
-			return respHandler(c, resp, 0)
+			return jsonRespHandler(c, resp.Data, resp.Status)
 			{{ end }}
 		},
 	){{ end }}
@@ -63,8 +63,9 @@ func RegisterHandlers(
 	app *fiber.App,
 	v *validate.Validate,
 	errorHandler func(fiber.Ctx, error) error,
-	respHandler func(fiber.Ctx, any, uint16) error,
-	{{ range .Recievers }}{{ template "reciever" . }},
+	jsonRespHandler func(fiber.Ctx, any, uint16) error,
+	{{ if .HasHTML }}htmlRespHandler func(fiber.Ctx, any, uint16, any) error,
+	{{ end }}{{ range .Recievers }}{{ template "reciever" . }},
 	{{ end }}
 ) {
 	{{ range .Endpoints }}{{ template "endpoint" . }}

@@ -111,7 +111,7 @@ func parseHandler(ep http.Endpoint, method http.Method, paths []*repr.PathString
 		return nil, e.ErrFailedAction("parse function identifiers", err)
 	}
 
-	reqType, resType, err := parseFnSignature(fn)
+	reqType, resType, responseKind, err := parseFnSignature(fn)
 	if err != nil {
 		return nil, e.ErrFailedAction("parse function signature", err)
 	}
@@ -140,20 +140,21 @@ func parseHandler(ep http.Endpoint, method http.Method, paths []*repr.PathString
 		Description:   ep.Description,
 		Body:          body,
 		Response:      response,
+		ResponseKind:  responseKind,
 		Handler:       handler,
 		Middleware:    epMiddleware,
 	}, nil
 }
 
-func parseFnSignature(fn reflect.Type) (reflect.Type, reflect.Type, error) {
+func parseFnSignature(fn reflect.Type) (reflect.Type, reflect.Type, repr.ResponseKind, error) {
 	const fnNumIn = 2
 	if fn.NumIn() != fnNumIn {
-		return nil, nil,
+		return nil, nil, "",
 			e.ErrBadValue("parameter number", fn.NumIn(), fnNumIn)
 	}
 	const fnNumOut = 2
 	if fn.NumOut() != fnNumOut {
-		return nil, nil,
+		return nil, nil, "",
 			e.ErrBadValue("result number", fn.NumOut(), fnNumOut)
 	}
 
@@ -162,29 +163,63 @@ func parseFnSignature(fn reflect.Type) (reflect.Type, reflect.Type, error) {
 	resPtrType := fn.Out(0)
 	errType := fn.Out(1)
 	if !ctxType.Implements(ctxInterface) {
-		return nil, nil, e.ErrBadType(ctxType, "context.Context")
+		return nil, nil, "", e.ErrBadType(ctxType, "context.Context")
 	}
 
 	if reqPtrType.Kind() != reflect.Pointer {
-		return nil, nil, e.ErrBadType(reqPtrType, "*struct{...}")
+		return nil, nil, "", e.ErrBadType(reqPtrType, "*struct{...}")
 	}
 	reqType := reqPtrType.Elem()
 	if reqType.Kind() != reflect.Struct {
-		return nil, nil, e.ErrBadType(reqPtrType, "*struct{...}")
+		return nil, nil, "", e.ErrBadType(reqPtrType, "*struct{...}")
 	}
 
 	if resPtrType.Kind() != reflect.Pointer {
-		return nil, nil, e.ErrBadType(resPtrType, "*struct{...}")
+		return nil, nil, "", e.ErrBadType(resPtrType, "*JR[T] or *HR[T]")
 	}
-	resType := resPtrType.Elem()
+	resWrapperType := resPtrType.Elem()
+	if resWrapperType.Kind() != reflect.Struct {
+		return nil, nil, "", e.ErrBadType(resPtrType, "*JR[T] or *HR[T]")
+	}
+
+	responseKind, err := detectResponseKind(resWrapperType)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	dataField, ok := resWrapperType.FieldByName("Data")
+	if !ok {
+		return nil, nil, "", e.ErrBadType(resPtrType, "*JR[T] or *HR[T] (missing Data field)")
+	}
+	resType := dataField.Type
 	if resType.Kind() != reflect.Struct {
-		return nil, nil, e.ErrBadType(resPtrType, "*struct{...}")
+		return nil, nil, "", e.ErrBadType(resType, "struct (Data field must be a struct)")
 	}
 
 	if !errType.Implements(errInterface) {
-		return nil, nil, e.ErrBadType(errType, "error")
+		return nil, nil, "", e.ErrBadType(errType, "error")
 	}
-	return reqType, resType, nil
+	return reqType, resType, responseKind, nil
+}
+
+const responsePkgSuffix = "pkg/http"
+
+func detectResponseKind(t reflect.Type) (repr.ResponseKind, error) {
+	name := t.Name()
+	pkgPath := t.PkgPath()
+
+	if !strings.HasSuffix(pkgPath, responsePkgSuffix) {
+		return "", e.ErrBadType(t, "*JR[T] or *HR[T] (must be from pkg/http)")
+	}
+
+	switch {
+	case strings.HasPrefix(name, "JR["):
+		return repr.ResponseJSON, nil
+	case strings.HasPrefix(name, "HR["):
+		return repr.ResponseHTML, nil
+	default:
+		return "", e.ErrBadType(t, "*JR[T] or *HR[T]")
+	}
 }
 
 func parseData(s reflect.Type) (*repr.Data, error) {

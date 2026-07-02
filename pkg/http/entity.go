@@ -127,3 +127,18 @@ type OpenAPIConfig struct {
 	Version    string
 	ServerURL  string
 }
+
+// JR is a JSON response wrapper. Handlers returning JR indicate
+// the response should be serialized as application/json.
+type JR[T any] struct {
+	Status uint16
+	Data   T
+}
+
+// HR is an HTML response wrapper. Handlers returning HR indicate
+// the response should be rendered as text/html using the provided template.
+type HR[T any] struct {
+	Status   uint16
+	Template any
+	Data     T
+}

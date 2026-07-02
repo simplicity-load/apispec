@@ -28,6 +28,9 @@ func getRegisterTemplate(imports importSet[sorted], recievers recieverSet[sorted
 				}
 				return ""
 			},
+			"isHTML": func(kind repr.ResponseKind) bool {
+				return kind == repr.ResponseHTML
+			},
 			"formatMiddleware": func(middleware repr.Middlewares) []string {
 				return formatMiddleware(middleware, imports, recievers)
 			},
@@ -58,6 +61,7 @@ func Generate(
 	t := getRegisterTemplate(impSortSet, recvSortSet)
 
 	enrinchedEndpoints := make([]endpointTemplateData, len(endpoints))
+	hasHTML := false
 	for i, e := range endpoints {
 		recvIdent := recvSortSet.get(e.Handler.Reciever, e.Handler.Import)
 		impIdent := impSortSet.get(e.Body.Import)
@@ -68,7 +72,9 @@ func Generate(
 			Middleware:    e.Middleware,
 			RecieverIdent: recvIdent,
 			ImportIdent:   impIdent,
-			HasStatus:     e.HasStatus,
+		}
+		if e.ResponseKind == repr.ResponseHTML {
+			hasHTML = true
 		}
 	}
 
@@ -78,6 +84,7 @@ func Generate(
 		Endpoints      []endpointTemplateData
 		ValidateImport string
 		SetupImports   []string
+		HasHTML        bool
 	}{
 		Recievers:      recvSort,
 		Imports:        impSort,
@@ -87,6 +94,7 @@ func Generate(
 			"github.com/gofiber/fiber/v3",
 			validateUrl,
 		},
+		HasHTML: hasHTML,
 	}
 	gen, err := templateToString(t.Lookup("setup"), data)
 	if err != nil {
@@ -131,7 +139,6 @@ func generateEndpointsIter(
 			Endpoint:   e,
 			IsGet:      e.Method == http.GET,
 			Middleware: path.Middleware,
-			HasStatus:  e.Response.HasCustomStatus(),
 		}
 	}
 
@@ -149,7 +156,6 @@ type endpointTemplateData struct {
 	RecieverIdent string
 	Middleware    repr.Middlewares
 	AppIdent      string
-	HasStatus     bool
 }
 
 func httpMethodToFiber(method http.Method) string {

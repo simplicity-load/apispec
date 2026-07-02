@@ -13,11 +13,24 @@ import (
 
 type X struct{}
 
-func (x X) Get(ctx context.Context, param *struct{}) (*struct{}, error)    { return nil, nil }
-func (x X) Post(ctx context.Context, param *struct{}) (*struct{}, error)   { return nil, nil }
-func (x X) Put(ctx context.Context, param *struct{}) (*struct{}, error)    { return nil, nil }
-func (x X) Patch(ctx context.Context, param *struct{}) (*struct{}, error)  { return nil, nil }
-func (x X) Delete(ctx context.Context, param *struct{}) (*struct{}, error) { return nil, nil }
+type EmptyReq struct{}
+type EmptyRes struct{}
+
+func (x X) Get(ctx context.Context, param *EmptyReq) (*http.JR[EmptyRes], error) {
+	return nil, nil
+}
+func (x X) Post(ctx context.Context, param *EmptyReq) (*http.JR[EmptyRes], error) {
+	return nil, nil
+}
+func (x X) Put(ctx context.Context, param *EmptyReq) (*http.JR[EmptyRes], error) {
+	return nil, nil
+}
+func (x X) Patch(ctx context.Context, param *EmptyReq) (*http.JR[EmptyRes], error) {
+	return nil, nil
+}
+func (x X) Delete(ctx context.Context, param *EmptyReq) (*http.JR[EmptyRes], error) {
+	return nil, nil
+}
 
 func generateApiRoutes(b *testing.B, pathCount int) *http.Path {
 	b.Helper()
@@ -60,9 +73,12 @@ func benchmarkGenerate(b *testing.B, routeCount int) {
 	for b.Loop() {
 		b.StopTimer()
 		routes := generateApiRoutes(b, routeCount)
+		parsed, err := apispec.ParseServer(routes)
+		if err != nil {
+			b.Fatal(err)
+		}
 		b.StartTimer()
-		err := apispec.Generate(http.HttpServer{
-			Routes:     routes,
+		err = apispec.Generate(parsed, http.HttpServer{
 			OutputFile: io.Discard,
 		})
 		if err != nil {

@@ -7,6 +7,13 @@ import (
 	"github.com/simplicity-load/apispec/pkg/http"
 )
 
+type ResponseKind string
+
+const (
+	ResponseJSON ResponseKind = "json"
+	ResponseHTML ResponseKind = "html"
+)
+
 type PathType string
 
 const (
@@ -37,6 +44,7 @@ type Endpoint struct {
 	Description   string        `json:",omitempty"`
 	Body          *Data         `json:",omitempty"`
 	Response      *Data         `json:",omitempty"`
+	ResponseKind  ResponseKind  `json:",omitempty"`
 	Handler       *Handler      `json:",omitempty"`
 	Middleware    Middlewares   `json:",omitempty"`
 }

@@ -32,18 +32,18 @@ type CreateUserRequest struct {
 }
 
 type UpdateUserRequest struct {
-	ID      string  `json:"id" as:"id,path" validate:"required"`
+	ID      string  `json:"id" as:"path,id" validate:"required"`
 	Name    string  `json:"name"`
 	Address Address `json:"address"`
 }
 
 type GetUserRequest struct {
-	ID string `json:"id" as:"id,path" validate:"required"`
+	ID string `json:"id" as:"path,id" validate:"required"`
 }
 
 type ListUsersRequest struct {
-	Limit  int `json:"limit" as:"limit,query"`
-	Offset int `json:"offset" as:"offset,query"`
+	Limit  int `json:"limit" as:"query,limit"`
+	Offset int `json:"offset" as:"query,offset"`
 }
 
 type EmptyResponse struct{}
@@ -53,20 +53,23 @@ type ListUsersResponse struct {
 }
 
 func TestGenerateOpenAPI_Comprehensive(t *testing.T) {
-	// Define handlers
-	createUserHandler := func(ctx context.Context, req *CreateUserRequest) (*User, error) { return nil, nil }
-	updateUserHandler := func(ctx context.Context, req *UpdateUserRequest) (*User, error) { return nil, nil }
-	getUserHandler := func(ctx context.Context, req *GetUserRequest) (*User, error) { return nil, nil }
-	listUsersHandler := func(ctx context.Context, req *ListUsersRequest) (*ListUsersResponse, error) { return nil, nil }
-	deleteUserHandler := func(ctx context.Context, req *GetUserRequest) (*EmptyResponse, error) { return nil, nil }
+	// Define handlers using JR[T]
+	createUserHandler := func(ctx context.Context, req *CreateUserRequest) (*http.JR[User], error) {
+		return nil, nil
+	}
+	updateUserHandler := func(ctx context.Context, req *UpdateUserRequest) (*http.JR[User], error) {
+		return nil, nil
+	}
+	getUserHandler := func(ctx context.Context, req *GetUserRequest) (*http.JR[User], error) {
+		return nil, nil
+	}
+	listUsersHandler := func(ctx context.Context, req *ListUsersRequest) (*http.JR[ListUsersResponse], error) {
+		return nil, nil
+	}
+	deleteUserHandler := func(ctx context.Context, req *GetUserRequest) (*http.JR[EmptyResponse], error) {
+		return nil, nil
+	}
 
-	// Create route configuration using new imperative API
-	// Expected paths:
-	// POST /              (Create User - though usually /users, testing root path here)
-	// GET /               (List Users)
-	// GET /users/{id}     (Get User)
-	// PUT /users/{id}     (Update User)
-	// DELETE /users/{id}  (Delete User)
 	api := http.NewAPI()
 	api.Post(createUserHandler, "Create a new user")
 	api.Get(listUsersHandler, "List all users")
@@ -77,12 +80,17 @@ func TestGenerateOpenAPI_Comprehensive(t *testing.T) {
 	userId.Put(updateUserHandler, "Update user by ID")
 	userId.Delete(deleteUserHandler, "Delete user by ID")
 
+	// Parse routes
+	routes, err := apispec.ParseServer(api)
+	if err != nil {
+		t.Fatalf("ParseServer failed: %v", err)
+	}
+
 	// Create output buffer
 	var output bytes.Buffer
 
 	// Create config
 	config := http.OpenAPIConfig{
-		Routes:     api,
 		OutputFile: &output,
 		Title:      "Complex User API",
 		Version:    "2.0.0",
@@ -90,7 +98,7 @@ func TestGenerateOpenAPI_Comprehensive(t *testing.T) {
 	}
 
 	// Generate OpenAPI spec
-	err := apispec.GenerateOpenAPI(config)
+	err = apispec.GenerateOpenAPI(routes, config)
 	if err != nil {
 		t.Fatalf("GenerateOpenAPI failed: %v", err)
 	}
@@ -176,7 +184,6 @@ func TestGenerateOpenAPI_Comprehensive(t *testing.T) {
 	}
 
 	// 3. Verify Subpath /users/{id}
-	// Note: Path construction logic: / + users + / + {id}
 	idPathKey := "/users/{id}"
 	idPath, ok := paths[idPathKey]
 	if !ok {
@@ -216,7 +223,7 @@ func TestGenerateOpenAPI_Comprehensive(t *testing.T) {
 		}
 	}
 
-	// Check GET response schema (Wrapped ListUsersResponse)
+	// Check GET response schema uses application/json
 	if getOp, ok := rootMap["get"].(map[string]interface{}); ok {
 		responses := getOp["responses"].(map[string]interface{})
 		okResp := responses["200"].(map[string]interface{})

@@ -152,10 +152,14 @@ func convertEndpoint(endpoint *repr.Endpoint) *Operation {
 
 	// Add response
 	responseSchema := convertDataToSchema(endpoint.Response)
+	responseContentType := "application/json"
+	if endpoint.ResponseKind == repr.ResponseHTML {
+		responseContentType = "text/html"
+	}
 	operation.Responses["200"] = Response{
 		Description: "Successful response",
 		Content: map[string]MediaType{
-			"application/json": {
+			responseContentType: {
 				Schema: responseSchema,
 			},
 		},

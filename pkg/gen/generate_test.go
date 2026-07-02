@@ -5,23 +5,28 @@ import (
 	"context"
 	"testing"
 
-	"github.com/simplicity-load/apispec/pkg/gen"
+	generate "github.com/simplicity-load/apispec/pkg/gen"
 	"github.com/simplicity-load/apispec/pkg/http"
 	"github.com/simplicity-load/apispec/pkg/parse/server"
-	repr "github.com/simplicity-load/apispec/pkg/repr/http"
 )
 
 type testHandler struct{}
 
-type X struct {
+type TestReq struct {
 	Y string `json:"y"`
 }
 
-func (h testHandler) Get(ctx context.Context, param *X) (*X, error)    { return nil, nil }
-func (h testHandler) Post(ctx context.Context, param *X) (*X, error)   { return nil, nil }
-func (h testHandler) Put(ctx context.Context, param *X) (*X, error)    { return nil, nil }
-func (h testHandler) Patch(ctx context.Context, param *X) (*X, error)  { return nil, nil }
-func (h testHandler) Delete(ctx context.Context, param *X) (*X, error) { return nil, nil }
+type TestRes struct {
+	Y string `json:"y"`
+}
+
+func (h testHandler) Get(ctx context.Context, param *TestReq) (*http.JR[TestRes], error) {
+	return nil, nil
+}
+func (h testHandler) Post(ctx context.Context, param *TestReq) (*http.JR[TestRes], error) {
+	return nil, nil
+}
+
 func TestGenerate(t *testing.T) {
 	h := testHandler{}
 	app := http.NewAPI()
@@ -37,7 +42,7 @@ func TestGenerate(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err = generate.Generate(repr.Representation{Routes: paths}, &buf, "")
+	err = generate.Generate(paths, &buf, "")
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
