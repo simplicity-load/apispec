@@ -138,7 +138,7 @@ func generateEndpointsIter(
 		endpointAcc[i] = endpointTemplateData{
 			Endpoint:   e,
 			IsGet:      e.Method == http.GET,
-			Middleware: path.Middleware,
+			Middleware: append(path.Middleware, e.Middleware...),
 		}
 	}
 

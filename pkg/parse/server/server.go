@@ -239,26 +239,26 @@ func parseData(s reflect.Type) (*repr.Data, error) {
 	}, nil
 }
 
-func structFieldIter(s reflect.Type) iter.Seq[reflect.StructField] {
-	return func(yield func(x reflect.StructField) bool) {
-		if s.Kind() != reflect.Struct {
-			return
+func fieldIter(s reflect.Type, f func(x reflect.StructField) bool) {
+	if s.Kind() != reflect.Struct {
+		return
+	}
+
+	for sf := range s.Fields() {
+		if isAnonStruct(sf) {
+			fieldIter(sf.Type, f)
+			continue
 		}
 
-		for i := range s.NumField() {
-			sf := s.Field(i)
-			if isAnonStruct(sf) {
-				for anonSf := range structFieldIter(sf.Type) {
-					if !yield(anonSf) {
-						return
-					}
-				}
-				continue
-			}
-			if !yield(sf) {
-				return
-			}
+		if !f(sf) {
+			return
 		}
+	}
+}
+
+func structFieldIter(s reflect.Type) iter.Seq[reflect.StructField] {
+	return func(yield func(x reflect.StructField) bool) {
+		fieldIter(s, yield)
 	}
 }
 
