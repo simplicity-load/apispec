@@ -38,6 +38,13 @@ func getRegisterTemplate(imports importSet[sorted], recievers recieverSet[sorted
 			"pathToString":        repr.PathToURL,
 			"toRequestParams":     toRequestParams,
 			"toRespParams":        toRespParams,
+			"toVariadicArgs": func(s []string) string {
+				quoted := make([]string, len(s))
+				for i, v := range s {
+					quoted[i] = fmt.Sprintf("%q", v)
+				}
+				return strings.Join(quoted, ", ")
+			},
 		}).Parse(templ)
 		if err != nil {
 			panic(err)
@@ -66,12 +73,13 @@ func Generate(
 		recvIdent := recvSortSet.get(e.Handler.Reciever, e.Handler.Import)
 		impIdent := impSortSet.get(e.Body.Import)
 		enrinchedEndpoints[i] = endpointTemplateData{
-			AppIdent:      "app",
-			Endpoint:      e.Endpoint,
-			IsGet:         e.IsGet,
-			Middleware:    e.Middleware,
-			RecieverIdent: recvIdent,
-			ImportIdent:   impIdent,
+			AppIdent:         "app",
+			Endpoint:         e.Endpoint,
+			IsGet:            e.IsGet,
+			Middleware:       e.Middleware,
+			RecieverIdent:    recvIdent,
+			ImportIdent:      impIdent,
+			HasAuthorization: len(e.Authorization) > 0,
 		}
 		if e.ResponseKind == repr.ResponseHTML {
 			hasHTML = true
@@ -151,11 +159,12 @@ func generateEndpointsIter(
 
 type endpointTemplateData struct {
 	*repr.Endpoint
-	IsGet         bool
-	ImportIdent   string
-	RecieverIdent string
-	Middleware    repr.Middlewares
-	AppIdent      string
+	IsGet            bool
+	ImportIdent      string
+	RecieverIdent    string
+	Middleware       repr.Middlewares
+	AppIdent         string
+	HasAuthorization bool
 }
 
 func httpMethodToFiber(method http.Method) string {
