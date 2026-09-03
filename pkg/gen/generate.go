@@ -148,6 +148,10 @@ func generateEndpointsIter(
 			IsGet:      e.Method == http.GET,
 			Middleware: append(path.Middleware, e.Middleware...),
 		}
+		// NOTE: add to required recievers from endpoint specific middleware
+		for reciever, imp := range e.Middleware.Recievers() {
+			recievers.add(reciever, imp)
+		}
 	}
 
 	for _, subPath := range path.SubPath {
